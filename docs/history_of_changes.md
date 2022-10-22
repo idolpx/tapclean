@@ -15,6 +15,7 @@ v0.39
 - New: Added initial support for "Gremlin GBH" (as used in "Impossamole"). Checkbytes miss one pulse so are not yet handled (Luigi)
 - New: Added support for "LK Avalon" (Polish publisher) loader (Luigi)
 - New: Added support for the "Anirog" clone found in Polish tapes and that includes a trailer sequence (Luigi)
+- New: Added the option to set the destination folder of report files (Luigi)
 
 v0.38
 -----
