@@ -455,7 +455,11 @@ const char knam[][48] = {
 };
 
 
-/* note: all generated files are saved to the exedir */
+char exedir[MAXPATH];			/* global, assigned in main(), includes trailing slash. */
+char reportdir[MAXPATH];		/* global, assigned in main(). */
+
+
+/* note: all generated files are saved to reportdir */
 
 static const char tcreportname[] =	"tcreport.txt";
 static const char temptcreportname[] =	"tcreport.tmp";
@@ -464,7 +468,6 @@ static char cleanedtapname[MAXPATH];	/* assigned in main(). */
 
 const char tcbatchreportname[] =	"tcbatch.txt";
 const char temptcbatchreportname[] =	"tcbatch.tmp";
-char exedir[MAXPATH];			/* global, assigned in main(), includes trailing slash. */
 
 
 /*
@@ -602,7 +605,8 @@ static void display_usage(void)
 	printf("Options:\n");
 	printf(" -t   <tape>    Test tape image\n");
 	printf(" -o   <tape>    Optimize tape image\n");
-	printf(" -b   <dir>     Batch test\n");
+	printf(" -b   <dir>     Batch test tape images in <dir>\n");
+	printf(" -rd  <dir>     Save report files to <dir>\n");
 	printf(" -au  <tape>    Convert tape image to Sun AU audio file (44kHz)\n");
 	printf(" -wav <tape>    Convert tape image to Microsoft WAV audio file (44kHz)\n");
 	printf(" -rs  <tap>     Correct the 'size' field of a TAP file header\n");
@@ -708,6 +712,17 @@ static void process_options(int argc, char **argv)
 				}
 			} else {
 				printf("\n\nTolerance parameter missing, using default (= %d).", DEFTOL - 1);
+			}
+		}
+
+		if (strcmp(argv[i], "-rd") == 0) {		/* flag = set directory for report files */
+			if (argv[i + 1] != NULL) {
+				if (strlen(argv[i + 1]) > MAXPATH - 1)
+					printf("\n\nDirectory location for report files is too long.");
+				else
+					strcpy(reportdir, argv[i + 1]);
+			} else {
+				printf("\n\nMissing directory location for report files, using current.");
 			}
 		}
 
@@ -2158,6 +2173,9 @@ int main(int argc, char *argv[])
 	if (!get_exedir(argv[0]))
 		return -1;
 
+	/* Assume the dir for reports is the same as where the exe is */
+	strcpy(reportdir, exedir);
+
 	/* Allocate database for files (not always needed, but still here) */
 	if (!database_create_blk_db())
 		return -1;
@@ -2900,7 +2918,7 @@ void report(void)
 		exit(1);
 	}
 
-	chdir(exedir);
+	chdir(reportdir);
 
 	fp = fopen(temptcreportname, "r");	/* delete any existing temp file... */
 	if (fp != NULL) {
