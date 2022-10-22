@@ -593,20 +593,24 @@ static int get_exedir(char *argv0)
 
 static void display_usage(void)
 {
-	printf("\nUsage:\n");
-	printf("tapclean [[option][parameter]] ...\n");
+	printf("\n");
+	printf("Usage:\n");
+	printf("tapclean [[option][parameter]] [[modifier][parameter]]...\n");
 	printf("Example: tapclean -o giana_sisters.tap -tol 12\n");
 
-	printf("\nOptions:\n");
-	printf(" -t   [tape]    Test tape image\n");
-	printf(" -o   [tape]    Optimize tape image\n");
-	printf(" -b   [dir]     Batch test\n");
-	printf(" -au  [tape]    Convert tape image to Sun AU audio file (44kHz)\n");
-	printf(" -wav [tape]    Convert tape image to Microsoft WAV audio file (44kHz)\n");
-	printf(" -rs  [TAP]     Correct the 'size' field of a TAP file header\n");
-	printf(" -ct0 [tape]    Convert tape image to version 0 TAP format\n");
-	printf(" -ct1 [tape]    Convert tape image to version 1 TAP format\n\n");
+	printf("\n");
+	printf("Options:\n");
+	printf(" -t   <tape>    Test tape image\n");
+	printf(" -o   <tape>    Optimize tape image\n");
+	printf(" -b   <dir>     Batch test\n");
+	printf(" -au  <tape>    Convert tape image to Sun AU audio file (44kHz)\n");
+	printf(" -wav <tape>    Convert tape image to Microsoft WAV audio file (44kHz)\n");
+	printf(" -rs  <tap>     Correct the 'size' field of a TAP file header\n");
+	printf(" -ct0 <tape>    Convert tape image to version 0 TAP format\n");
+	printf(" -ct1 <tape>    Convert tape image to version 1 TAP format\n");
 
+	printf("\n");
+	printf("Modifiers:\n");
 	printf(" -boostclean    Raise cleaning threshold\n");
 	printf(" -debug         Allow detected files to overlap\n");
 	printf(" -do<loader>    Scan only for <loader>\n");
@@ -626,7 +630,7 @@ static void display_usage(void)
 	printf(" -sine          Make audio converter use sine waves\n");
 	printf(" -skewadapt     Use skewed pulse adapting bit reader\n");
 	printf(" -sortbycrc     Batch scan sorts report by cbmcrc values\n");
-	printf(" -tol [0-15]    Set pulsewidth read tolerance, default = 10\n");
+	printf(" -tol <0-15>    Set pulsewidth read tolerance, default = 10\n");
 
 	/*
 	 * These switches should only be used for legacy TAP/DMP files produced
@@ -638,7 +642,8 @@ static void display_usage(void)
 	 * Additionally, these switches can be used in case of a TAP/DMP file
 	 * whose contents are intended for more than one platform.
 	 */
-	printf("\nExperimental options (for advanced users):\n");
+	printf("\n");
+	printf("Experimental modifiers (for advanced users):\n");
 	printf(" -16            Force Commodore 16 tape\n");
 	printf(" -20            Force Commodore VIC 20 tape\n");
 	printf(" -64            Force Commodore 64 tape (default)\n");
