@@ -16,6 +16,7 @@ v0.39
 - New: Added support for "LK Avalon" (Polish publisher) loader (Luigi)
 - New: Added support for the "Anirog" clone found in Polish tapes and that includes a trailer sequence (Luigi)
 - New: Added the option to set the destination folder of report files (Luigi)
+- Improvement: In the "MMS Tape" scanner the backtrack delta to identify the CBM Header corresponding to a turbo file was extended (Luigi)
 
 v0.38
 -----
