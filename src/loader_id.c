@@ -405,6 +405,7 @@ int idloader(unsigned /*long*/ int crc, int len)
 
 		{0x14FA292E, LID_MMS},		/* Drip */
 		{0x1127DC9A, LID_MMS},		/* Dr. Mad */
+		{0x06500A4A, LID_MMS},		/* Castle */
 
 		{0xAFA566C3, LID_GREMLINGBH},	/* Impossamole */
 		{0x1F019DE4, LID_GREMLINGBH},	/* Lotus Esprit Turbo Challenge */
