@@ -56,7 +56,7 @@
 #define ENDOFFSETH	0x7B	/* end location (MSB) offset inside CBM header */
 #define ENDOFFSETL	0x77	/* end location (LSB) offset inside CBM header */
 
-#define MAXCBMBACKTRACE	0x3800  /* max amount of pulses between turbo file and the
+#define MAXCBMBACKTRACE	0x3880  /* max amount of pulses between turbo file and the
 				   'FIRST' instance of its CBM header block.
 				   The typical value is less than this one */
 
