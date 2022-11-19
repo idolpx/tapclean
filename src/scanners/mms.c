@@ -56,7 +56,7 @@
 #define ENDOFFSETH	0x7B	/* end location (MSB) offset inside CBM header */
 #define ENDOFFSETL	0x77	/* end location (LSB) offset inside CBM header */
 
-#define MAXCBMBACKTRACE	0x3880  /* max amount of pulses between turbo file and the
+#define MAXCBMBACKTRACE	0x3980  /* max amount of pulses between turbo file and the
 				   'FIRST' instance of its CBM header block.
 				   The typical value is less than this one */
 
@@ -124,6 +124,13 @@ void mms_search (void)
 				ib = find_decode_block(CBM_HEAD, cbm_index);
 				if (ib == -1)
 					return;		/* failed to locate CBM Header for this one and any further MMS file. */
+
+				/*
+				printf("\nCBM repeat possibly at %x for MMS with sof = %x (diff = %x)", 
+				        blk[ib]->p1, 
+					sof, 
+					sof - blk[ib]->p1);
+				*/
 
 				/* Plausibility checks. Here since we track the CBM part for each
 				   of them, in case of multiple MMS files on the same tape:
