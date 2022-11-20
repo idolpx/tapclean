@@ -132,6 +132,13 @@ void biturbo_search (void)
 				if (ib == -1)
 					return;		/* failed to locate CBM data for this one and any further Biturbo file. */
 
+				/*
+				printf("\nCBM Header (first) possibly at %x for block with sof = %x (diff = %x)", 
+				        blk[ib]->p1, 
+					sof, 
+					sof - blk[ib]->p1);
+				*/
+
 				/* Plausibility checks. Here since we track the CBM part for each
 				   of them, in case of multiple Biturbo files on the same tape:
 				   there may be some programs using Biturbo, some others using another loader,
