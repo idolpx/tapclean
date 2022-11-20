@@ -126,7 +126,7 @@ void mms_search (void)
 					return;		/* failed to locate CBM Header for this one and any further MMS file. */
 
 				/*
-				printf("\nCBM repeated possibly at %x for MMS with sof = %x (diff = %x)", 
+				printf("\nCBM Header (repeated) possibly at %x for block with sof = %x (diff = %x)", 
 				        blk[ib]->p1, 
 					sof, 
 					sof - blk[ib]->p1);
