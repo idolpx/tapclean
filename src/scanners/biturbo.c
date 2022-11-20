@@ -118,7 +118,7 @@ void biturbo_search (void)
 			/* Now we try to retrieve the Biturbo variables from the corresponding CBM
 			   Data block ('FIRST' instance).
 			   We search for the CBM data block whose start offset in the TAP file is not
-			   too much far from where we found the actual Biturbo file */
+			   too far from where we found the actual Biturbo file */
 
 			/* Note: it could be cbm_index += 2 so we skip the "REPEATED" instances of
 			         CBM data blocks, but in case the "FIRST" instance of any CBM

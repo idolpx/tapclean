@@ -124,7 +124,7 @@ void powerload_search (void)
 				/* Now we try to retrieve the Power Load variables from the corresponding CBM
 				   Data block ('FIRST' instance).
 				   We search for the CBM data block whose start offset in the TAP file is not
-				   too much far from where we found the actual Power Load file */
+				   too far from where we found the actual Power Load file */
 
 				match = 1;
 

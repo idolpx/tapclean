@@ -56,8 +56,8 @@
 #define ENDOFFSETH	0x7B	/* end location (MSB) offset inside CBM header */
 #define ENDOFFSETL	0x77	/* end location (LSB) offset inside CBM header */
 
-#define MAXCBMBACKTRACE	0x3980  /* max amount of pulses between turbo file and the
-				   'FIRST' instance of its CBM header block.
+#define MAXCBMBACKTRACE	0x3980  /* max amount of pulses between a turbo file and the
+				   'REPEATED' instance of its CBM header block.
 				   The typical value is less than this one */
 
 void mms_search (void)
