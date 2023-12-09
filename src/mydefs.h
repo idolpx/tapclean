@@ -40,7 +40,7 @@
 #endif
 
 #define VERSION_STR	"0.39-pre-5"
-#define COPYRIGHT_STR	"(C)2006-2022 TC Team"
+#define COPYRIGHT_STR	"(C)2006-2023 TC Team"
 #define BUILDER_STR	"ldf"
 
 #define TRUE	1
@@ -236,6 +236,8 @@ enum {
 	GREMLIN_GBH_HEAD,
 	GREMLIN_GBH_DATA,
 	LK_AVALON,
+	TT263_HEAD,
+	TT263_DATA,
 	MSX_HEAD,
 	MSX_DATA,
 	MSX_HEAD_FAST,
@@ -534,6 +536,7 @@ enum {
 	notrilogic,
 	noturbo220,
 	noturbo,
+	noturbo263,
 	noturbo526,
 	noturr,
 	nousgold,

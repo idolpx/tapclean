@@ -149,6 +149,7 @@ struct ldrswt_t ldrswt[] = {
 	{"Trilogic"			,"trilogic"	,FALSE},
 	{"Turbo 220"			,"turbo220"	,FALSE},
 	{"Turbotape 250"		,"turbo"	,FALSE},
+	{"Turbotape 263"		,"turbo263"	,FALSE},
 	{"Turbotape 526"		,"turbo526"	,FALSE},
 	{"Turrican"			,"turr"		,FALSE},
 	{"U.S. Gold"			,"usgold"	,FALSE},
@@ -357,6 +358,8 @@ struct fmt_t ft[] = {
 	{"GREMLIN GBH HEADER"	,MSbF, NA,   0x2F, 0x49, 0x80, 1,    0,    512,  NA,    CSNO},
 	{"GREMLIN GBH DATA"	,MSbF, NA,   0x2F, 0x49, 0x80, 1,    0,    512,  NA,    CSNO},
 	{"LK AVALON"		,MSbF, 0x21, 0x1A, NA,   0x28, 0x02, 0x09, 50,   NA,    CSYES},
+	{"TURBOTAPE 263 HEADER"	,LSbF, 0x20, 0x1B, NA,   0x27, 0x02, 0x09, 0x100,NA,    CSNO},
+	{"TURBOTAPE 263 DATA"	,LSbF, 0x20, 0x1B, NA,   0x27, 0x02, 0x09, 0x80, NA,    CSYES},
 
 	/* name,                 en,   tp,   sp,   mp,   lp,   pv,   sv,   pmin, pmax,  has_cs. */
 
@@ -1378,6 +1381,9 @@ static void search_tap(void)
 			if (ldrswt[nogremlingbh	].exclude == FALSE && !database_is_full && !aborted)
 				gremlin_gbh_search();
 
+			if (ldrswt[noturbo263	].exclude == FALSE && !database_is_full && !aborted)
+				turbotape263_search();
+
 			if (ldrswt[nomsx	].exclude == FALSE && !database_is_full && !aborted)
 				msx_search(0);	/* Standard/Fast */
 
@@ -1746,6 +1752,10 @@ static void describe_file(int row)
 		case GREMLIN_GBH_DATA:	gremlin_gbh_describe(row);
 					break;
 		case LK_AVALON:		lk_avalon_describe(row);
+					break;
+		case TT263_HEAD:	turbotape263_describe(row);
+					break;
+		case TT263_DATA:	turbotape263_describe(row);
 					break;
 		case MSX_HEAD:		msx_describe(row);
 					break;

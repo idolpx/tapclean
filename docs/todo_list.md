@@ -6,6 +6,7 @@ Foreword
 Completed tasks are still included here as there's often a dependency on them within tasks not yet completed.
 Some older tasks (at the bottom) might not be applicable any longer, but are kept here for reference.
 
+- TODO: Rewrite "Turbo Tape 250" using "Turbo Tape 263" which is an exact clone of the former but used LSbF instead of MSbF (Luigi)
 - TODO: When using the backtrace mechanism in "Biturbo" and "Power Load" the first CBM Header instance is sought. For "MMS Tape" the second one is sought instead. Is one preferable to the other in all cases? (Luigi)
 - TODO: Allow users to specify the location of extracted PRG files (Mike)
 - TODO: In "Gremlin GBH" checkbytes miss one pulse so are not yet handled: add support for partial bytes and reconstruction (Luigi)
