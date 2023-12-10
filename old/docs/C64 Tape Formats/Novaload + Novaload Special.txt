@@ -26,9 +26,8 @@ Sync : Bit 1
 Then...
 
 1 byte : $AA 
-1 byte : NOT $55 (see Novaload "special" format below) 
+1 byte : NOT $55 (see Novaload "special" format below) => Length of Filename (if 0 then no filename follows)
 
-1 byte : Length of Filename (if 0 then no filename follows)
 n bytes : Filename
 2 bytes : Start address - 256 (LSBF) 
 2 bytes : End address (LSBF) 
