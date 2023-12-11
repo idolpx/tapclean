@@ -278,7 +278,7 @@ int turrican_describe(int row)
 
 		/* Read Header payload (it's safe to read it here for it was already decoded during the search stage) */
 		for (i = 0; i < HDRPAYLOADSIZE; i++)
-			hdrpayload[i]= readttbyte(s + (i * BITSINABYTE), lp, sp, tp, en);
+			hdrpayload[i] = readttbyte(s + (i * BITSINABYTE), lp, sp, tp, en);
 
 		/* Read filename */
 		for (i = 0; i < NAMESIZE; i++)

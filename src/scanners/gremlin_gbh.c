@@ -261,7 +261,7 @@ int gremlin_gbh_describe(int row)
 
 		/* Read Header payload (it's safe to read it here for it was already decoded during the search stage) */
 		for (i = 0; i < HDRPAYLOADSIZE; i++)
-			hdrpayload[i]= readttbyte(s + (i * BITSINABYTE), mp, sp, tp, en);
+			hdrpayload[i] = readttbyte(s + (i * BITSINABYTE), mp, sp, tp, en);
 
 		/* Set load and end locations and size */
 		blk[row]->cs = 0x0F25F;

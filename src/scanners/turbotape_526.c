@@ -77,7 +77,7 @@ enum {
  * If defined Header file payload contents are extracted 
  * and consequently the CRC32 is calculated
  */
-#define TT526_EXTRACT_HEADER
+#define _TT526_EXTRACT_HEADER
 
 void turbotape526_search(void)
 {
@@ -279,7 +279,7 @@ int turbotape526_describe(int row)
 
 		/* Read Header payload (it's safe to read it here for it was already decoded during the search stage) */
 		for (i = 0; i < HDRPAYLOADSIZE; i++)
-			hdrpayload[i]= readttbyte(s + (i * BITSINABYTE), lp, sp, tp, en);
+			hdrpayload[i] = readttbyte(s + (i * BITSINABYTE), lp, sp, tp, en);
 
 		/* Read filename */
 		for (i = 0; i < NAMESIZE; i++)
