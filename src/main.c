@@ -109,6 +109,7 @@ struct ldrswt_t ldrswt[] = {
 	{"Gremlin F1"			,"gremlinf1"	,FALSE},
 	{"Gremlin F2"			,"gremlinf2"	,FALSE},
 	{"Gremlin GBH"			,"gremlingbh"	,FALSE},
+	{"Gyrospeed"			,"gyrospeed"	,FALSE},
 	{"Hitload"			,"hit"		,FALSE},
 	{"Hi-Tec"			,"hitec"	,FALSE},
 	{"IK"				,"ik"		,FALSE},
@@ -360,6 +361,7 @@ struct fmt_t ft[] = {
 	{"LK AVALON"		,MSbF, 0x21, 0x1A, NA,   0x28, 0x02, 0x09, 50,   NA,    CSYES},
 	{"TURBOTAPE 263 HEADER"	,LSbF, 0x20, 0x1B, NA,   0x27, 0x02, 0x09, 0x100,NA,    CSNO},
 	{"TURBOTAPE 263 DATA"	,LSbF, 0x20, 0x1B, NA,   0x27, 0x02, 0x09, 0x80, NA,    CSYES},
+	{"GYROSPEED"		,MSbF, 0x1F, 0x15, NA,   0x2A, 0x40, 0x5A, 45,   400,   CSYES},
 
 	/* name,                 en,   tp,   sp,   mp,   lp,   pv,   sv,   pmin, pmax,  has_cs. */
 
@@ -450,7 +452,7 @@ const char knam[][48] = {
 	{"Lexpeed Fastsave System"},
 	{"MMS Tape"},
 	{"Gremlin GBH"},
-	{"LK Avalon"},
+	{"Gyrospeed"},
 	/*
 	 * Only loaders with a LID_ entry in mydefs.h enums. Do not list
 	 * them all here!
@@ -523,7 +525,7 @@ static void unload_tap(void)
 	tap.cbmcrc = 0;
 	tap.cbmdatalen = 0;
 	tap.cbmhcrc = 0;
-	tap.cbmid = 0;
+	tap.cbmid = LID_NONE;
 	tap.tst_hd = 0;
 	tap.tst_rc = 0;
 	tap.tst_op = 0;
@@ -1151,6 +1153,9 @@ static void search_tap(void)
 			if (tap.cbmid == LID_GREMLINGBH	&& ldrswt[nogremlingbh	].exclude == FALSE && !database_is_full && !aborted)
 				gremlin_gbh_search();
 
+			if (tap.cbmid == LID_GYROSPEED	&& ldrswt[nogyrospeed	].exclude == FALSE && !database_is_full && !aborted)
+				gyrospeed_search();
+
 			/*
 			 * todo : TURRICAN
 			 * todo : SEUCK
@@ -1161,7 +1166,7 @@ static void search_tap(void)
 
 		/* Scan the lot.. (if shortcuts are disabled or no loader ID was found) */
 
-		if ((noid == FALSE && tap.cbmid == 0) || (noid == TRUE)) {
+		if ((noid == FALSE && tap.cbmid == LID_NONE) || (noid == TRUE)) {
 			if (ldrswt[noturbo	].exclude == FALSE && !database_is_full && !aborted)
 				turbotape_search();
 
@@ -1402,6 +1407,14 @@ static void search_tap(void)
 
 			if (ldrswt[nolkavalon	].exclude == FALSE && !database_is_full && !aborted)
 				lk_avalon_search();
+
+			/*
+			 * The REPEATed CBM Data file for Gyrospeed seems to be usually
+			 * lacking EOF markers so we can't just rely on tap.cbmid. See TODO
+			 * entry to move the calculation of tap.cbmid out of cbm_search().
+			 */
+			if (ldrswt[nogyrospeed	].exclude == FALSE && !database_is_full && !aborted)
+				gyrospeed_search();
 
 			/*
 			 * Do not add the following ones because they should only be looked for when
@@ -1756,6 +1769,8 @@ static void describe_file(int row)
 		case TT263_HEAD:	turbotape263_describe(row);
 					break;
 		case TT263_DATA:	turbotape263_describe(row);
+					break;
+		case GYROSPEED:		gyrospeed_describe(row);
 					break;
 		case MSX_HEAD:		msx_describe(row);
 					break;

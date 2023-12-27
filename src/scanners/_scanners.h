@@ -290,5 +290,8 @@ int lk_avalon_describe(int);
 void turbotape263_search(void);
 int turbotape263_describe(int);
 
+void gyrospeed_search(void);
+int gyrospeed_describe(int);
+
 void msx_search(int);	/* specify the Tx variant if discovered; 0 to try them all */
 int msx_describe(int);

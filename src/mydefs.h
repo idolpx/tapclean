@@ -39,7 +39,7 @@
 #define SLASH	'/'
 #endif
 
-#define VERSION_STR	"0.39-pre-6"
+#define VERSION_STR	"0.39-pre-7"
 #define COPYRIGHT_STR	"(C)2006-2023 TC Team"
 #define BUILDER_STR	"ldf"
 
@@ -238,6 +238,7 @@ enum {
 	LK_AVALON,
 	TT263_HEAD,
 	TT263_DATA,
+	GYROSPEED,
 	MSX_HEAD,
 	MSX_DATA,
 	MSX_HEAD_FAST,
@@ -251,7 +252,8 @@ enum {
  */
 
 enum {
-	LID_FREE=1,
+	LID_NONE=0,
+	LID_FREE,
 	LID_ODE,
 	LID_BLEEP,
 	LID_MEGASAVE,
@@ -314,6 +316,7 @@ enum {
 	LID_LEXPEED,
 	LID_MMS,
 	LID_GREMLINGBH,
+	LID_GYROSPEED,
 };
 
 /*
@@ -496,6 +499,7 @@ enum {
 	nogremlinf1,
 	nogremlinf2,
 	nogremlingbh,
+	nogyrospeed,
 	nohit,
 	nohitec,
 	noik,

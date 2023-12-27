@@ -403,9 +403,13 @@ void cbm_search(void)
 					i = eof;	/* optimize search */
 
 					/*
-					 * here i decode the program block just found and create a CRC for it.
-					 * this is used elsewhere to ID the loader for "Fast Scanning" purposes.
-					 * i only need to do this for repeated cbm prog of the 1st data file found.
+					 * Here we decode the program block just found and create a CRC for it.
+					 * This is used elsewhere to ID the loader for "Fast Scanning" purposes.
+					 * We only need to do this for the payload of the 1st CBM data file found.
+					 * TODO: we should move this logic outside of the scanner, so we would be
+					 *       able to use either the FIRST or REPEAT CBM Data file, based on which
+					 *       one is healthy (verified checksum and data size matches what is
+					 *       set in the header).
 					 */
 
 					if (cbmid == REPEAT && !crcdone) {

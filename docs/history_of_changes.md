@@ -18,6 +18,8 @@ v0.39
 - New: Added the option to set the destination folder of report files (Luigi)
 - Improvement: In the "MMS Tape" scanner the backtrack delta to identify the CBM Header corresponding to a turbo file was extended (Luigi)
 - New: Added support for a clone of "Turbotape 250", used in Wladca by Mirage and supplied by Pawel (Luigi)
+- Fix: In the "Turbotape 526" scanner the contents of the header block are now extracted, which contributes to the overall CRC32 value (Luigi)
+- New: Added support for "Gyrospeed" (Luigi)
 
 v0.38
 -----

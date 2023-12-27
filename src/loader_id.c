@@ -410,6 +410,9 @@ int idloader(unsigned /*long*/ int crc, int len)
 		{0xAFA566C3, LID_GREMLINGBH},	/* Impossamole */
 		{0x1F019DE4, LID_GREMLINGBH},	/* Lotus Esprit Turbo Challenge */
 
+		{0xF47019A4, LID_GYROSPEED},	/* BASIC program */
+		{0xDF90D81A, LID_GYROSPEED},	/* Machine code program */
+
 		{0, 0}				/* List terminator/cap */
 	};
 

@@ -5,12 +5,13 @@ Integrating new scanners into TAPClean
 	- `xxx_search()`
 	- `xxx_describe()`
 	- custom bit / byte reading functions, if `readttbit()` / `readttbyte()` are unsuitable
-- Save your new format's source file in the 'scanners' folder and add the function prototypes to scanners.h.
-- Add a definition for the format to the `ft[]` array (in main.c).
-- Add a capitalized constant name for the format to the enum in mydefs.h, which must match the formats position in the `ft[]` array.
-- Add a function call to your `xxx_search()` to the `search_tap()` function in main.c.
-- Add a function call to your `xxx_describe()` to the `describe_file()` function in main.c.
-- Add a global variable `noxxx` (allows disabling of the scanner) to main.c, and implement it as for all existing formats.
+- Save your new format's source file in the 'scanners' folder and add the function prototypes to scanners.h
+- Add a definition for the format to the `ft[]` array (in main.c)
+- Add a capitalized constant name for the format to the enum in mydefs.h, which must match the relevant position in the `ft[]` array
+- Add an entry to the `ldrswt[]` array (in main.c)
+- Add an enum `noxxx` (allows disabling of the scanner) to mydefs.h, which must match the relevant position in the `ldrswt[]` array
+- Add a function call to your `xxx_search()` to the `search_tap()` function in main.c, based on the value of `ldrswt[noxxx].exclude`
+- Add a function call to your `xxx_describe()` to the `describe_file()` function in main.c
 - Test thoroughly: be very careful that your newly added format does not conflict with any exisiting formats!
 
 Adding loader IDs for quick scanning
