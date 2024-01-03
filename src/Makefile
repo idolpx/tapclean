@@ -19,7 +19,7 @@ OBJ  =	main.o clean.o crc32.o batchscan.o database.o dc2nconv.o \
 	scanners/cyberload_f1.o scanners/cyberload_f2.o \
 	scanners/cyberload_f3.o scanners/cyberload_f4.o scanners/enigma.o \
 	scanners/firebird.o scanners/flashload.o scanners/freeload.o \
-	scanners/freezemachine.o scanners/hitec.o scanners/hitload.o \
+	scanners/freezemachine.o scanners/gyrospeed.o scanners/hitec.o scanners/hitload.o \
 	scanners/ikloader.o scanners/jetload.o scanners/microload.o \
 	scanners/nova_f1.o scanners/nova_f2.o scanners/ocean.o \
 	scanners/oceannew1.o scanners/oceannew2.o scanners/oceannew3.o \
