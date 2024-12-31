@@ -34,6 +34,139 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef _MSC_VER
+#define inline __inline
+#endif
+
+//#define PAL_F2_DEBUG
+
+/* Try to find the CBM block with the Palace load orchestrator and main loader in it */
+static void find_palace_loader (int *ib, int **buf, int *bufsz)
+{
+   /*
+    * SEI
+    * LDA $D011
+    * AND #$EF
+    * STA $D011
+    */
+   unsigned char mainldr[9] = {0x78,0xAD,0x11,0xD0,0x29,0xEF,0x8D,0x11,0xD0};
+   int i, j, k;
+
+   /* Assume CBM block not found */
+   *ib = -1;
+
+   for (i=0; i<4; i++)
+   {
+      *ib = find_decode_block(CBM_DATA, i);
+
+      if (*ib == -1) continue;
+      if (blk[*ib]->cx < 9) continue;
+
+      for (j=0; j<sizeof(mainldr)/sizeof(mainldr[0]); j++)
+         if (blk[*ib]->dd[j] != mainldr[j])
+            break;
+
+      if (j == 9)
+      {
+         *bufsz = blk[*ib]->cx;
+
+         *buf = (int *) malloc (*bufsz * sizeof(int));
+         if (*buf != NULL)
+         {
+#ifdef PAL_F2_DEBUG
+            if (*ib != -1)
+            {
+              printf ("\nPalace loader found in CBM file index: %d", i);
+              printf ("\nCopying %d bytes to an 'int' buffer", *bufsz);
+            }
+#endif
+            /* Make an 'int' copy for use in find_seq() */
+            for (k = 0; k < *bufsz; k++)
+               (*buf)[k] = blk[*ib]->dd[k];
+         }
+         else
+         {
+           *ib = -1;
+         }
+
+         break;
+      }
+      else
+      {
+         *ib = -1;
+      }
+   }
+}
+
+static inline void get_palace_addresses (int *buf, int bufsz, int entrypointoffset, int blkindex, unsigned int *s, int *sb)
+{
+   /* Load snippets usually found in the loader orchestrator */
+   int seq_load[18] = {
+      /* Example from Barbarian
+       * LDA #$00 ; Load address LSB
+       * STA $0080
+       * LDA #$44 ; MSB of the same
+       * STA $0081
+       * LDA #$04 ; Number of sub-blocks
+       * STA $0101
+       * JSR $052E ; Load     
+       */
+      0xA9,XX,0x8D,0x80,0x00,0xA9,XX,0x8D,0x81,0x00,0xA9,XX,0x8D,0x01,0x01,0x20,XX,XX
+   };
+
+   int index, offset, deltaoffset, sumoffsets;
+#ifdef PAL_F2_DEBUG
+   int i;
+#endif
+
+   index = 1;
+   offset = 0;
+   deltaoffset = 0;
+   sumoffsets = entrypointoffset;
+
+#ifdef PAL_F2_DEBUG
+   printf ("\n---------------\nIndex: %d", blkindex);
+#endif
+
+   do
+   {
+      sumoffsets += (offset + deltaoffset);
+
+#ifdef PAL_F2_DEBUG
+      printf ("\nScanning for seq at index: %d", sumoffsets);
+#endif
+
+      offset = find_seq(buf + sumoffsets, bufsz - sumoffsets, seq_load, sizeof(seq_load) / sizeof(seq_load[0]));
+
+      if (offset == -1) break;
+
+#ifdef PAL_F2_DEBUG
+      printf ("\nFound at relative offset: %d, absolute offset: %d", offset, sumoffsets + offset);
+      printf ("\nSequence:");
+      for (i=0; i<sizeof(seq_load) / sizeof(seq_load[0]); i++)
+         printf("%02X ", buf[sumoffsets + offset +i]);
+#endif
+
+      index++;
+      deltaoffset=sizeof(seq_load)/sizeof(seq_load[0]);
+   } while (index <= blkindex);
+
+   if (offset == -1)
+   {
+      *s = 0;
+      *sb = 0;
+#ifdef PAL_F2_DEBUG
+      printf ("\nNo further file details found");
+#endif
+   }
+   else
+   {
+      *s  = buf[sumoffsets + offset +  1];
+      *s |= buf[sumoffsets + offset +  6] << 8;
+      *sb = buf[sumoffsets + offset + 11];
+   }
+}
+
 /*---------------------------------------------------------------------------
 */
 void palacef2_search(void)
@@ -43,10 +176,14 @@ void palacef2_search(void)
    int fsync[4]= {0x4A,0x50,0x47,0x29};    /* file sync sequence. */
    int bsync[5]= {0x4A,0x50,0x47,0x10};    /* block sync sequence. followed by block #. */
    
+   int ib=-1;    /* condition variable */
+   int *buf=NULL, bufsz=0;
+   int b=1, fa=-1;
+   unsigned int s;
+
    if(!quiet)
       msgout("  Palace Tape F2");
-         
-   
+
    for(i=20; i<tap.len-8; i++)
    {
       if((z=find_pilot(i,PAL_F2))>0)
@@ -86,7 +223,32 @@ void palacef2_search(void)
                eod=tmp;
                eof=eod+7;
 
-               addblockdef(PAL_F2, sof,sod,eod,eof, blocks);
+               if (fa == -1)
+               {
+                  find_palace_loader(&ib, &buf, &bufsz);
+                  fa=0;
+               }
+
+               if (ib != -1)
+               {
+                  int subblocks;
+
+                  get_palace_addresses(buf, bufsz, 0, b++, &s, &subblocks);
+
+                  if (subblocks)
+                  {
+                     addblockdef(PAL_F2, sof,sod,eod,eof, blocks | (s << 8));
+#ifdef PAL_F2_DEBUG
+                     if (subblocks != blocks)
+                        printf ("\nSubblocks read: %d, decoded from data: %d", subblocks, blocks);
+#endif
+                  }
+                  else
+                  {
+                     addblockdef(PAL_F2, sof,sod,eod,eof, blocks);
+                  }
+               }
+
                i=eof;  /* optimize search */
             }
          }
@@ -97,6 +259,9 @@ void palacef2_search(void)
             i=(-z);
       }
    }
+
+   if (ib != -1)
+      free (buf);
 }
 /*---------------------------------------------------------------------------
 */
@@ -104,8 +269,13 @@ int palacef2_describe(int row)
 {
    int i,j,s,b,cb,goodchecks,ddi,total_blocks;
 
-   total_blocks= blk[row]->xi;
+   total_blocks= blk[row]->xi & 255;
 
+   if (blk[row]->xi >> 8)
+   {
+      blk[row]->cs = (blk[row]->xi >> 8);
+      blk[row]->ce = blk[row]->cs + 256*total_blocks - 1;
+   }
    blk[row]->cx= 256*total_blocks;
 
    if(blk[row]->dd!=NULL)
