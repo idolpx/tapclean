@@ -38,12 +38,14 @@
 #define inline __inline
 #endif
 
-//#define PAL_F2_DEBUG
+#define PAL_F2_DEBUG
 
 /* Try to find the CBM block with the Palace load orchestrator and main loader in it */
-static void find_palace_loader (int *ib, int **buf, int *bufsz)
+void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
 {
    /*
+    * Example from Barbarian:
+    *
     * SEI
     * LDA $D011
     * AND #$EF
@@ -54,42 +56,60 @@ static void find_palace_loader (int *ib, int **buf, int *bufsz)
 
    /* Assume CBM block not found */
    *ib = -1;
+   *buf = NULL;
+   *bufsz = 0;
 
-   for (i=0; i<4; i++)
+   /*
+    * First we check if this is the genuine format/a known variant.
+    * We use CBM DATA index # 3 to check as we assume the tape image contains
+    * a single game. We also scan CBM DATA index # 4 to override load/end addr.
+    * For compilations we should search and find the relevant file using the
+    * search code found e.g. in Biturbo.
+    */
+   for (i=3; i<=4; i++)
    {
+#ifdef PAL_F2_DEBUG
+      printf("\nLooking for Palace loader in CBM file index: %d", i);
+#endif
+
       *ib = find_decode_block(CBM_DATA, i);
 
       if (*ib == -1) continue;
       if (blk[*ib]->cx < 9) continue;
 
-      for (j=0; j<sizeof(mainldr)/sizeof(mainldr[0]); j++)
+      /* Look for the loader signature */
+      for (j=0; j<sizeof(mainldr) / sizeof(mainldr[0]); j++)
          if (blk[*ib]->dd[j] != mainldr[j])
             break;
 
+      /* Signature found? */
       if (j == 9)
       {
-         *bufsz = blk[*ib]->cx;
-
-         *buf = (int *) malloc (*bufsz * sizeof(int));
-         if (*buf != NULL)
+         /* Only copy the block once into the buffer */
+         if (*buf == NULL)
          {
-#ifdef PAL_F2_DEBUG
-            if (*ib != -1)
+            *bufsz = blk[*ib]->cx;
+
+            *buf = (int *) malloc (*bufsz * sizeof(int));
+            if (*buf != NULL)
             {
-              printf ("\nPalace loader found in CBM file index: %d", i);
-              printf ("\nCopying %d bytes to an 'int' buffer", *bufsz);
-            }
+#ifdef PAL_F2_DEBUG
+              printf("\nPalace loader found in CBM file index: %d", i);
+              printf("\nCopying %d bytes to an 'int' buffer", *bufsz);
 #endif
-            /* Make an 'int' copy for use in find_seq() */
-            for (k = 0; k < *bufsz; k++)
-               (*buf)[k] = blk[*ib]->dd[k];
-         }
-         else
-         {
-           *ib = -1;
+               /* Make an 'int' copy for use in find_seq() */
+               for (k = 0; k < *bufsz; k++)
+                  (*buf)[k] = blk[*ib]->dd[k];
+            }
+            else
+            {
+              *ib = -1;
+            }
          }
 
-         break;
+         /* Override load and end addresses of the CBM DATA blocks 3 and 4 */
+         blk[*ib]->cs = 0x03e0;
+         blk[*ib]->ce = blk[*ib]->cs + blk[*ib]->cx - 1;
       }
       else
       {
@@ -98,11 +118,13 @@ static void find_palace_loader (int *ib, int **buf, int *bufsz)
    }
 }
 
-static inline void get_palace_addresses (int *buf, int bufsz, int entrypointoffset, int blkindex, unsigned int *s, int *sb)
+static inline void get_palace_block_info (int *buf, int bufsz, int entrypointoffset, int blkindex, unsigned int *s, int *sb)
 {
    /* Load snippets usually found in the loader orchestrator */
    int seq_load[18] = {
-      /* Example from Barbarian
+      /*
+       * Example from Barbarian:
+       *
        * LDA #$00 ; Load address LSB
        * STA $0080
        * LDA #$44 ; MSB of the same
@@ -124,8 +146,12 @@ static inline void get_palace_addresses (int *buf, int bufsz, int entrypointoffs
    deltaoffset = 0;
    sumoffsets = entrypointoffset;
 
+   /* Assume block info not found */
+   *s = 0;
+   *sb = 0;
+
 #ifdef PAL_F2_DEBUG
-   printf ("\n---------------\nIndex: %d", blkindex);
+   printf("\n---------------\nIndex: %d", blkindex);
 #endif
 
    do
@@ -133,7 +159,8 @@ static inline void get_palace_addresses (int *buf, int bufsz, int entrypointoffs
       sumoffsets += (offset + deltaoffset);
 
 #ifdef PAL_F2_DEBUG
-      printf ("\nScanning for seq at index: %d", sumoffsets);
+      if (index == blkindex)
+         printf("\nScanning for seq at index: %d", sumoffsets);
 #endif
 
       offset = find_seq(buf + sumoffsets, bufsz - sumoffsets, seq_load, sizeof(seq_load) / sizeof(seq_load[0]));
@@ -141,22 +168,25 @@ static inline void get_palace_addresses (int *buf, int bufsz, int entrypointoffs
       if (offset == -1) break;
 
 #ifdef PAL_F2_DEBUG
-      printf ("\nFound at relative offset: %d, absolute offset: %d", offset, sumoffsets + offset);
-      printf ("\nSequence:");
-      for (i=0; i<sizeof(seq_load) / sizeof(seq_load[0]); i++)
-         printf("%02X ", buf[sumoffsets + offset +i]);
+      if (index == blkindex)
+      {
+        printf("\nFound %d-th at relative offset: %d, absolute offset: %d", index, offset, sumoffsets + offset);
+
+        printf("\nSequence:");
+        for (i=0; i<sizeof(seq_load) / sizeof(seq_load[0]); i++)
+           printf("%02X ", buf[sumoffsets + offset +i]);
+      }
 #endif
 
       index++;
-      deltaoffset=sizeof(seq_load)/sizeof(seq_load[0]);
-   } while (index <= blkindex);
+      deltaoffset=sizeof(seq_load) / sizeof(seq_load[0]);
+   }
+   while (index <= blkindex);
 
    if (offset == -1)
    {
-      *s = 0;
-      *sb = 0;
 #ifdef PAL_F2_DEBUG
-      printf ("\nNo further file details found");
+      printf("\nNo further file details found");
 #endif
    }
    else
@@ -176,10 +206,10 @@ void palacef2_search(void)
    int fsync[4]= {0x4A,0x50,0x47,0x29};    /* file sync sequence. */
    int bsync[5]= {0x4A,0x50,0x47,0x10};    /* block sync sequence. followed by block #. */
    
-   int ib=-1;    /* condition variable */
+   int ib=-1, fa=-1;    /* condition variables */
    int *buf=NULL, bufsz=0;
-   int b=1, fa=-1;
-   unsigned int s;
+   int b=1;
+   unsigned int s=0;
 
    if(!quiet)
       msgout("  Palace Tape F2");
@@ -223,24 +253,27 @@ void palacef2_search(void)
                eod=tmp;
                eof=eod+7;
 
+               /* When we're sure this is a Palace block, try to find the load orchestrator counterpart in a CBM DATA block */
                if (fa == -1)
                {
-                  find_palace_loader(&ib, &buf, &bufsz);
-                  fa=0;
+                  find_and_copy_palace_loader(&ib, &buf, &bufsz);
+                  fa=0; /* Only search and copy the orchestrator once */
                }
 
+               /* If we were able to find the load orchestrator CBM DATA block, scan it for block information */
                if (ib != -1)
                {
-                  int subblocks;
+                  int subblocks = 0;
 
-                  get_palace_addresses(buf, bufsz, 0, b++, &s, &subblocks);
+                  get_palace_block_info(buf, bufsz, 0, b++, &s, &subblocks);
 
+                  /* Check if we were able to extract the information for this block */
                   if (subblocks)
                   {
                      addblockdef(PAL_F2, sof,sod,eod,eof, blocks | (s << 8));
 #ifdef PAL_F2_DEBUG
                      if (subblocks != blocks)
-                        printf ("\nSubblocks read: %d, decoded from data: %d", subblocks, blocks);
+                        printf("\nSubblocks read: %d, decoded from data: %d", subblocks, blocks);
 #endif
                   }
                   else
@@ -248,6 +281,12 @@ void palacef2_search(void)
                      addblockdef(PAL_F2, sof,sod,eod,eof, blocks);
                   }
                }
+               /* Fall back to the legacy behaviour */
+               else
+               {
+                  addblockdef(PAL_F2, sof,sod,eod,eof, blocks);
+               }
+                  
 
                i=eof;  /* optimize search */
             }
@@ -270,13 +309,14 @@ int palacef2_describe(int row)
    int i,j,s,b,cb,goodchecks,ddi,total_blocks;
 
    total_blocks= blk[row]->xi & 255;
+   blk[row]->cx= 256*total_blocks;
 
+   /* If we were able to extract block information from the orchestrator, use it here */
    if (blk[row]->xi >> 8)
    {
       blk[row]->cs = (blk[row]->xi >> 8);
-      blk[row]->ce = blk[row]->cs + 256*total_blocks - 1;
+      blk[row]->ce = blk[row]->cs + blk[row]->cx - 1;
    }
-   blk[row]->cx= 256*total_blocks;
 
    if(blk[row]->dd!=NULL)
       free(blk[row]->dd);
@@ -305,7 +345,7 @@ int palacef2_describe(int row)
       if(cb==b)
          goodchecks++;
    }
-   sprintf(lin,"\n<BR> - Good Checkbytes : %d of %d",goodchecks,total_blocks);
+   sprintf(lin,"\n - Good Checkbytes : %d of %d",goodchecks,total_blocks);
    strcat(info,lin);
 
    blk[row]->cs_exp= total_blocks;   /* fake the overall checkbyte as a */
@@ -317,9 +357,3 @@ int palacef2_describe(int row)
    
    return 0;
 }
-
-
-
-
-
- 
