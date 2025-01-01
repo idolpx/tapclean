@@ -34,7 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define PAL_F2_DEBUG
+//#define PAL_F2_DEBUG
 
 /* Try to find the CBM block with the Palace load orchestrator and main loader in it */
 void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
