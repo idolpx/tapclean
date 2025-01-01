@@ -48,7 +48,7 @@ void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
     * STA $D011
     */
    unsigned char mainldr[9] = {0x78,0xAD,0x11,0xD0,0x29,0xEF,0x8D,0x11,0xD0};
-   int i, j, k;
+   int i, j, k, cnt = 0;  /* Counters */
 
    /* Assume CBM block not found */
    *ib = -1;
@@ -65,7 +65,7 @@ void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
    for (i=3; i<=4; i++)
    {
 #ifdef PAL_F2_DEBUG
-      printf("\nLooking for Palace loader in CBM file index: %d", i);
+      printf("\nLooking for Palace loader in CBM DATA block index: %d", i);
 #endif
 
       *ib = find_decode_block(CBM_DATA, i);
@@ -81,7 +81,11 @@ void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
       /* Signature found? */
       if (j == 9)
       {
-         /* Only copy the block once into the buffer */
+#ifdef PAL_F2_DEBUG
+         printf("\nPalace loader found in CBM DATA block index: %d", i);
+#endif
+
+         /* Only allocate the buffer and copy the CBM DATA block once */
          if (*buf == NULL)
          {
             *bufsz = blk[*ib]->cx;
@@ -90,8 +94,7 @@ void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
             if (*buf != NULL)
             {
 #ifdef PAL_F2_DEBUG
-              printf("\nPalace loader found in CBM file index: %d", i);
-              printf("\nCopying %d bytes to an 'int' buffer", *bufsz);
+               printf("\nCopying %d bytes to an 'int' buffer", *bufsz);
 #endif
                /* Make an 'int' copy for use in find_seq() */
                for (k = 0; k < *bufsz; k++)
@@ -99,19 +102,31 @@ void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
             }
             else
             {
-              *ib = -1;
+#ifdef PAL_F2_DEBUG
+               printf("\nBuffer allocation failed. Aborting search.");
+#endif
+
+               *ib = -1;
+
+               return;
             }
          }
 
          /* Override load and end addresses of the CBM DATA blocks 3 and 4 */
          blk[*ib]->cs = 0x03e0;
          blk[*ib]->ce = blk[*ib]->cs + blk[*ib]->cx - 1;
-      }
-      else
-      {
-         *ib = -1;
+
+#ifdef PAL_F2_DEBUG
+         printf("\nOverridden CBM DATA block info at index: %d", i);
+#endif
+
+         /* Update the count of CBM DATA blocks found and patched */
+         cnt++;
       }
    }
+
+   if (cnt == 0)
+      *ib = -1;
 }
 
 void get_palace_block_info (int *buf, int bufsz, int entrypointoffset, int blkindex, unsigned int *s, int *sb)
