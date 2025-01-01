@@ -31,6 +31,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define PAL_F1_DEBUG
+
 /*---------------------------------------------------------------------------
 */
 void palacef1_search(void)
@@ -41,6 +43,11 @@ void palacef1_search(void)
    int fsync_b2[4]= {XX,0x45,0x44,0x29};   /* file sync sequence for Barbarian II side B. */
    int bsync[5]= {0x4A,0x50,0x47,0x10};    /* block sync sequence. followed by block #. */
    int bsync_b2[5]= {0x42,0x4C,0x4B,0x10}; /* block sync sequence. followed by block # for Barbarian II side B. */
+
+   int ib=-1, fa=-1;    /* condition variables */
+   int *buf=NULL, bufsz=0;
+   int b=1;
+   unsigned int s=0;
 
    if(!quiet)
       msgout("  Palace Tape F1");
@@ -117,7 +124,40 @@ void palacef1_search(void)
                eod=tmp;
                eof=eod+7;
 
-               addblockdef(PAL_F1, sof,sod,eod,eof, blocks);
+               /* When we're sure this is a Palace F1 block, try to find the load orchestrator counterpart in a CBM DATA block */
+               if (fa == -1)
+               {
+                  find_and_copy_palace_loader(&ib, &buf, &bufsz);
+                  fa=0; /* Only search and copy the orchestrator once */
+               }
+
+               /* If we were able to find the load orchestrator CBM DATA block, scan it for block information */
+               if (ib != -1)
+               {
+                  int subblocks = 0;
+
+                  get_palace_block_info(buf, bufsz, 0, b++, &s, &subblocks);
+
+                  /* Check if we were able to extract the information for this block */
+                  if (subblocks)
+                  {
+                     addblockdef(PAL_F1, sof,sod,eod,eof, blocks | (s << 8));
+#ifdef PAL_F1_DEBUG
+                     if (subblocks != blocks)
+                        printf("\nSubblocks read: %d, decoded from data: %d", subblocks, blocks);
+#endif
+                  }
+                  else
+                  {
+                     addblockdef(PAL_F1, sof,sod,eod,eof, blocks);
+                  }
+               }
+               /* Fall back to the legacy behaviour */
+               else
+               {
+                  addblockdef(PAL_F1, sof,sod,eod,eof, blocks);
+               }
+
                i=eof;  /* optimize search */
             }
          }
@@ -128,6 +168,9 @@ void palacef1_search(void)
             i=(-z);
       }
    }
+
+   if (ib != -1)
+      free (buf);
 }
 /*---------------------------------------------------------------------------
 */
@@ -135,9 +178,15 @@ int palacef1_describe(int row)
 {
    int i,j,s,b,cb,goodchecks,ddi,total_blocks;
 
-   total_blocks= blk[row]->xi;
-
+   total_blocks= blk[row]->xi & 255;
    blk[row]->cx= 256*total_blocks;
+
+   /* If we were able to extract block information from the orchestrator, use it here */
+   if (blk[row]->xi >> 8)
+   {
+      blk[row]->cs = (blk[row]->xi >> 8);
+      blk[row]->ce = blk[row]->cs + blk[row]->cx - 1;
+   }
 
    if(blk[row]->dd!=NULL)
       free(blk[row]->dd);
@@ -175,11 +224,6 @@ int palacef1_describe(int row)
    /* get pilot & trailer length.. */
    blk[row]->pilot_len= ((blk[row]->p2- blk[row]->p1)>>3)-4;
    blk[row]->trail_len=0;
-  
+
    return 0;
 }
-
-
-
-
- 
