@@ -278,18 +278,18 @@ void palacef2_search(void)
 
                   get_palace_block_info(buf, bufsz, 0, b++, &s, &subblocks);
 
-                  /* Check if we were able to extract the information for this block */
-                  if (subblocks)
+                  /* Check if we were able to extract the relevant information for this block */
+                  if (subblocks && subblocks == blocks)
                   {
                      addblockdef(PAL_F2, sof,sod,eod,eof, blocks | (s << 8));
-#ifdef PAL_F2_DEBUG
-                     if (subblocks != blocks)
-                        printf("\nSubblocks read: %d, decoded from data: %d", subblocks, blocks);
-#endif
                   }
                   else
                   {
                      addblockdef(PAL_F2, sof,sod,eod,eof, blocks);
+#ifdef PAL_F2_DEBUG
+                     if (subblocks && subblocks != blocks)
+                        printf("\nSubblock count mismatch, read: %d, decoded from data: %d", subblocks, blocks);
+#endif
                   }
                }
                /* Fall back to the legacy behaviour */
