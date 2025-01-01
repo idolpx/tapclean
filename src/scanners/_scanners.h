@@ -151,6 +151,8 @@ int snakeload50_describe(int);
 void palacef1_search(void);
 int palacef1_describe(int);
 
+void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz);
+void get_palace_block_info (int *buf, int bufsz, int entrypointoffset, int blkindex, unsigned int *s, int *sb);
 void palacef2_search(void);
 int palacef2_describe(int);
 
