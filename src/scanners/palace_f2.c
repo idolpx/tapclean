@@ -34,10 +34,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#ifdef _MSC_VER
-#define inline __inline
-#endif
-
 #define PAL_F2_DEBUG
 
 /* Try to find the CBM block with the Palace load orchestrator and main loader in it */
@@ -118,7 +114,7 @@ void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
    }
 }
 
-static inline void get_palace_block_info (int *buf, int bufsz, int entrypointoffset, int blkindex, unsigned int *s, int *sb)
+void get_palace_block_info (int *buf, int bufsz, int entrypointoffset, int blkindex, unsigned int *s, int *sb)
 {
    /* Load snippets usually found in the loader orchestrator */
    int seq_load[18] = {
@@ -205,7 +201,7 @@ void palacef2_search(void)
    int z;
    int fsync[4]= {0x4A,0x50,0x47,0x29};    /* file sync sequence. */
    int bsync[5]= {0x4A,0x50,0x47,0x10};    /* block sync sequence. followed by block #. */
-   
+
    int ib=-1, fa=-1;    /* condition variables */
    int *buf=NULL, bufsz=0;
    int b=1;
@@ -253,7 +249,7 @@ void palacef2_search(void)
                eod=tmp;
                eof=eod+7;
 
-               /* When we're sure this is a Palace block, try to find the load orchestrator counterpart in a CBM DATA block */
+               /* When we're sure this is a Palace F2 block, try to find the load orchestrator counterpart in a CBM DATA block */
                if (fa == -1)
                {
                   find_and_copy_palace_loader(&ib, &buf, &bufsz);
@@ -286,7 +282,6 @@ void palacef2_search(void)
                {
                   addblockdef(PAL_F2, sof,sod,eod,eof, blocks);
                }
-                  
 
                i=eof;  /* optimize search */
             }
@@ -354,6 +349,6 @@ int palacef2_describe(int row)
    /* get pilot & trailer length.. */
    blk[row]->pilot_len= ((blk[row]->p2- blk[row]->p1)>>3)-4;
    blk[row]->trail_len=0;
-   
+
    return 0;
 }
