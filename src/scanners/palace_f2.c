@@ -189,7 +189,8 @@ void get_palace_block_info (int *buf, int bufsz, int entrypointoffset, int blkin
 #endif
 
       index++;
-      deltaoffset=sizeof(seq_load) / sizeof(seq_load[0]);
+
+      deltaoffset = sizeof(seq_load) / sizeof(seq_load[0]);
    }
    while (index <= blkindex);
 
