@@ -148,9 +148,6 @@ void get_palace_block_info (int *buf, int bufsz, int entrypointoffset, int blkin
    };
 
    int index, offset, deltaoffset, sumoffsets;
-#ifdef PAL_F2_DEBUG
-   int i;
-#endif
 
    index = 1;
    offset = 0;
@@ -181,11 +178,13 @@ void get_palace_block_info (int *buf, int bufsz, int entrypointoffset, int blkin
 #ifdef PAL_F2_DEBUG
       if (index == blkindex)
       {
-        printf("\nFound %d-th at relative offset: %d, absolute offset: %d", index, offset, sumoffsets + offset);
+         int i;
 
-        printf("\nSequence:");
-        for (i=0; i<sizeof(seq_load) / sizeof(seq_load[0]); i++)
-           printf("%02X ", buf[sumoffsets + offset +i]);
+         printf("\nFound %d-th at relative offset: %d, absolute offset: %d", index, offset, sumoffsets + offset);
+
+         printf("\nSequence:");
+         for (i=0; i<sizeof(seq_load) / sizeof(seq_load[0]); i++)
+            printf("%02X ", buf[sumoffsets + offset +i]);
       }
 #endif
 
