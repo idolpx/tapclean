@@ -180,7 +180,7 @@ void get_palace_block_info (int *buf, int bufsz, int entrypointoffset, int blkin
       {
          int i;
 
-         printf("\nFound %d-th at relative offset: %d, absolute offset: %d", index, offset, sumoffsets + offset);
+         printf("\nFound %d-th occurrence at relative offset: %d, absolute offset: %d", index, offset, sumoffsets + offset);
 
          printf("\nSequence:");
          for (i=0; i<sizeof(seq_load) / sizeof(seq_load[0]); i++)
