@@ -31,7 +31,178 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#define PAL_COMMON_DEBUG
 //#define PAL_F1_DEBUG
+
+/* Try to find the CBM block with the Palace load orchestrator and main loader in it */
+void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
+{
+   /*
+    * Example from Barbarian:
+    *
+    * SEI
+    * LDA $D011
+    * AND #$EF
+    * STA $D011
+    */
+   unsigned char mainldr[9] = {0x78,0xAD,0x11,0xD0,0x29,0xEF,0x8D,0x11,0xD0};
+   int i, j, k, cnt = 0;  /* Counters */
+
+   /* Assume CBM block not found */
+   *ib = -1;
+   *buf = NULL;
+   *bufsz = 0;
+
+   /*
+    * First we check if this is the genuine format/a known variant.
+    * We use CBM DATA index # 3 to check as we assume the tape image contains
+    * a single game. We also scan CBM DATA index # 4 to override load/end addr.
+    * For compilations we should search and find the relevant file using the
+    * search code found e.g. in Biturbo.
+    */
+   for (i=3; i<=4; i++)
+   {
+#ifdef PAL_COMMON_DEBUG
+      printf("\nLooking for Palace loader in CBM DATA block index: %d", i);
+#endif
+
+      *ib = find_decode_block(CBM_DATA, i);
+
+      if (*ib == -1) continue;
+      if (blk[*ib]->cx < 9) continue;
+
+      /* Look for the loader signature */
+      for (j=0; j<sizeof(mainldr) / sizeof(mainldr[0]); j++)
+         if (blk[*ib]->dd[j] != mainldr[j])
+            break;
+
+      /* Signature found? */
+      if (j == 9)
+      {
+#ifdef PAL_COMMON_DEBUG
+         printf("\nPalace loader found in CBM DATA block index: %d", i);
+#endif
+
+         /* Only allocate the buffer and copy the CBM DATA block once */
+         if (*buf == NULL)
+         {
+            *bufsz = blk[*ib]->cx;
+
+            *buf = (int *) malloc (*bufsz * sizeof(int));
+            if (*buf != NULL)
+            {
+#ifdef PAL_COMMON_DEBUG
+               printf("\nCopying %d bytes to an 'int' buffer", *bufsz);
+#endif
+               /* Make an 'int' copy for use in find_seq() */
+               for (k = 0; k < *bufsz; k++)
+                  (*buf)[k] = blk[*ib]->dd[k];
+            }
+            else
+            {
+#ifdef PAL_COMMON_DEBUG
+               printf("\nBuffer allocation failed. Aborting search.");
+#endif
+
+               *ib = -1;
+
+               return;
+            }
+         }
+
+         /* Override load and end addresses of the CBM DATA blocks 3 and 4 */
+         blk[*ib]->cs = 0x03e0;
+         blk[*ib]->ce = blk[*ib]->cs + blk[*ib]->cx - 1;
+
+#ifdef PAL_COMMON_DEBUG
+         printf("\nOverridden CBM DATA block info at index: %d", i);
+#endif
+
+         /* Update the count of CBM DATA blocks found and patched */
+         cnt++;
+      }
+   }
+
+   if (cnt == 0)
+      *ib = -1;
+}
+
+void get_palace_block_info (int *buf, int bufsz, int entrypointoffset, int blkindex, unsigned int *s, int *sb)
+{
+   /* Load snippets usually found in the loader orchestrator */
+   int seq_load[18] = {
+      /*
+       * Example from Barbarian:
+       *
+       * LDA #$00 ; Load address LSB
+       * STA $0080
+       * LDA #$44 ; MSB of the same
+       * STA $0081
+       * LDA #$04 ; Number of sub-blocks
+       * STA $0101
+       * JSR $052E ; Load     
+       */
+      0xA9,XX,0x8D,0x80,0x00,0xA9,XX,0x8D,0x81,0x00,0xA9,XX,0x8D,0x01,0x01,0x20,XX,XX
+   };
+
+   int index, offset, seq_len, sumoffsets;
+
+   index = 1;
+   offset = 0;
+   seq_len = sizeof(seq_load) / sizeof(seq_load[0]);
+   sumoffsets = entrypointoffset;
+
+   /* Assume block info not found */
+   *s = 0;
+   *sb = 0;
+
+#ifdef PAL_COMMON_DEBUG
+   printf("\n---------------\nIndex: %d", blkindex);
+#endif
+
+   while (1)
+   {
+#ifdef PAL_COMMON_DEBUG
+      if (index == blkindex)
+         printf("\nScanning for seq at index: %d", sumoffsets);
+#endif
+
+      offset = find_seq(buf + sumoffsets, bufsz - sumoffsets, seq_load, seq_len);
+
+      if (offset == -1) break;
+
+      if (index == blkindex)
+      {
+#ifdef PAL_COMMON_DEBUG
+         int i;
+
+         printf("\nFound %d-th occurrence at relative offset: %d, absolute offset: %d", index, offset, sumoffsets + offset);
+
+         printf("\nSequence:");
+         for (i=0; i<seq_len; i++)
+            printf("%02X ", buf[sumoffsets + offset +i]);
+#endif
+         break;
+      }
+
+      index++;
+
+      sumoffsets += (offset + seq_len);
+   }
+
+   if (offset == -1)
+   {
+#ifdef PAL_COMMON_DEBUG
+      printf("\nNo further file details found");
+#endif
+   }
+   else
+   {
+      *s  = buf[sumoffsets + offset +  1];
+      *s |= buf[sumoffsets + offset +  6] << 8;
+      *sb = buf[sumoffsets + offset + 11];
+   }
+}
 
 /*---------------------------------------------------------------------------
 */
