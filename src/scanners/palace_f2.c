@@ -34,7 +34,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define PAL_F2_DEBUG
+//#define PAL_F2_DEBUG
 
 /*---------------------------------------------------------------------------
 */

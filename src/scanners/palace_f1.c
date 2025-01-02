@@ -31,7 +31,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define PAL_COMMON_DEBUG
+//#define PAL_COMMON_DEBUG
 //#define PAL_F1_DEBUG
 
 /* Try to find the CBM block with the Palace load orchestrator and main loader in it */
