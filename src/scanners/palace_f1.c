@@ -34,11 +34,11 @@
 //#define PAL_COMMON_DEBUG
 //#define PAL_F1_DEBUG
 
-/* Try to find the CBM block with the Palace load orchestrator and main loader in it */
+/* Try to find CBM DATA blocks with the Palace load orchestrator and main loader in them */
 void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
 {
    /*
-    * Example from "The Secret Armour of Antiriad" and "Barbarian":
+    * Example from "The Secret Armour of Antiriad" and "Barbarian", at $03E0:
     *
     * SEI
     * LDA $D011
@@ -49,7 +49,7 @@ void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
    int i, j, k;  /* Counters */
    int b;
 
-   /* Assume CBM block not found */
+   /* Assume the CBM DATA block was not found */
    *ib = -1;
    *buf = NULL;
    *bufsz = 0;
@@ -112,7 +112,7 @@ void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
             }
          }
 
-         /* Override load and end addresses of the CBM DATA blocks 3 and 4 */
+         /* Override load and end addresses of the matching CBM DATA block */
          blk[b]->cs = 0x03e0;
          blk[b]->ce = blk[b]->cs + blk[b]->cx - 1;
 
@@ -128,7 +128,17 @@ void get_palace_block_info (int *buf, int bufsz, int entrypointoffset, int blkin
    /* Load snippets usually found in the loader orchestrator */
    int seq_load[18] = {
       /*
-       * Example from Barbarian:
+       * Example from "The Secret Armour of Antiriad":
+       *
+       * LDA #$00 ; Load address LSB
+       * STA $0080
+       * LDA #$10 ; MSB of the same
+       * STA $0081     
+       * LDA #$09 ; Number of sub-blocks
+       * STA $0101     
+       * JSR $047F ; Load
+       *
+       * Example from "Barbarian":
        *
        * LDA #$00 ; Load address LSB
        * STA $0080
