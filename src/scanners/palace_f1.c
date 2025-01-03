@@ -38,15 +38,16 @@
 void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
 {
    /*
-    * Example from Barbarian:
+    * Example from "The Secret Armour of Antiriad" and "Barbarian":
     *
     * SEI
     * LDA $D011
     * AND #$EF
     * STA $D011
     */
-   unsigned char mainldr[9] = {0x78,0xAD,0x11,0xD0,0x29,0xEF,0x8D,0x11,0xD0};
-   int i, j, k, cnt = 0;  /* Counters */
+   unsigned char ldr_signature[9] = {0x78,0xAD,0x11,0xD0,0x29,0xEF,0x8D,0x11,0xD0};
+   int i, j, k;  /* Counters */
+   int b;
 
    /* Assume CBM block not found */
    *ib = -1;
@@ -66,14 +67,14 @@ void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
       printf("\nLooking for Palace loader in CBM DATA block index: %d", i);
 #endif
 
-      *ib = find_decode_block(CBM_DATA, i);
+      b = find_decode_block(CBM_DATA, i);
 
-      if (*ib == -1) continue;
-      if (blk[*ib]->cx < 9) continue;
+      if (b == -1) continue;
+      if (blk[b]->cx < 9) continue;
 
-      /* Look for the loader signature */
-      for (j=0; j<sizeof(mainldr) / sizeof(mainldr[0]); j++)
-         if (blk[*ib]->dd[j] != mainldr[j])
+      /* Look for the loader's signature */
+      for (j=0; j<sizeof(ldr_signature) / sizeof(ldr_signature[0]); j++)
+         if (blk[b]->dd[j] != ldr_signature[j])
             break;
 
       /* Signature found? */
@@ -86,7 +87,7 @@ void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
          /* Only allocate the buffer and copy the CBM DATA block once */
          if (*buf == NULL)
          {
-            *bufsz = blk[*ib]->cx;
+            *bufsz = blk[b]->cx;
 
             *buf = (int *) malloc (*bufsz * sizeof(int));
             if (*buf != NULL)
@@ -96,7 +97,10 @@ void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
 #endif
                /* Make an 'int' copy for use in find_seq() */
                for (k = 0; k < *bufsz; k++)
-                  (*buf)[k] = blk[*ib]->dd[k];
+                  (*buf)[k] = blk[b]->dd[k];
+
+               /* Use this block's ID to signal that we found the loader */
+               *ib = b;
             }
             else
             {
@@ -104,27 +108,19 @@ void find_and_copy_palace_loader (int *ib, int **buf, int *bufsz)
                printf("\nBuffer allocation failed. Aborting search.");
 #endif
 
-               *ib = -1;
-
                return;
             }
          }
 
          /* Override load and end addresses of the CBM DATA blocks 3 and 4 */
-         blk[*ib]->cs = 0x03e0;
-         blk[*ib]->ce = blk[*ib]->cs + blk[*ib]->cx - 1;
+         blk[b]->cs = 0x03e0;
+         blk[b]->ce = blk[b]->cs + blk[b]->cx - 1;
 
 #ifdef PAL_COMMON_DEBUG
          printf("\nOverridden CBM DATA block info at index: %d", i);
 #endif
-
-         /* Update the count of CBM DATA blocks found and patched */
-         cnt++;
       }
    }
-
-   if (cnt == 0)
-      *ib = -1;
 }
 
 void get_palace_block_info (int *buf, int bufsz, int entrypointoffset, int blkindex, unsigned int *s, int *sb)
