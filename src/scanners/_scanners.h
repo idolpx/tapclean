@@ -31,6 +31,9 @@ int cbm_describe(int);
 void turbotape_search(void);
 int turbotape_describe(int);
 
+void turbotape_fast_search(void);
+int turbotape_fast_describe(int);
+
 void freeload_search(void);
 int freeload_describe(int);
 

@@ -20,8 +20,14 @@
 #include "database.h"
 #include "main.h"
 
+#ifdef TAPCLEAN_EMBEDDED
+struct blk_t **blk;		/*!< heap-allocated by tapclean_init() (the
+				     8 KB pointer array is too much BSS) */
+struct prg_t *prg;		/*!< heap-allocated by tapclean_init() */
+#else
 struct blk_t *blk[BLKMAX];	/*!< Database of all found entities */
 struct prg_t prg[BLKMAX];	/*!< Database of all extracted files (prg's) */
+#endif
 int database_is_full = FALSE;	/*!< Flag that indicates database capacity
 				     reached */
 
@@ -180,6 +186,21 @@ int database_add_blk_def_ex(int lt, int sof, int sod, int eod, int eof, int xi, 
 	} else {
 		return DBERR;
 	}
+
+#ifdef TAPCLEAN_EMBEDDED
+	/* Early scan exit: once found entities account for nearly the whole
+	   tape, the remaining ~85 scanners cannot add anything meaningful.
+	   Set 'aborted' so search_tap() skips them (every scanner call is
+	   gated on !aborted); the scanner currently running finishes its
+	   pass. Only checked when a data block was added, so an all-pause
+	   tape still gets the full sweep. tapclean_analyze_tap() clears
+	   'aborted' before each scan. */
+	if (tap.len > 20 && lt > PAUSE) {
+		long long tot = database_count_recognized_pulses();
+		if (tot * 100 >= (long long)(tap.len - 20) * 97)
+			aborted = TRUE;
+	}
+#endif
 
 	return slot;	/* ok, entry added successfully.   */
 }
@@ -501,8 +522,18 @@ void database_destroy_blk_db(void)
 
 void database_make_prg_db(void)
 {
+#ifdef TAPCLEAN_EMBEDDED
+	/* BLKMAX ints are too much stack for an embedded task */
+	int i, c, j, t, x, s, e, errors, ti, *pt;
+	unsigned char *tmp, done;
+
+	pt = (int*)malloc((BLKMAX + 1) * sizeof(int));
+	if (pt == NULL)
+		return;
+#else
 	int i, c, j, t, x, s, e, errors, ti, pt[BLKMAX];
 	unsigned char *tmp, done;
+#endif
 
 	/* Create table of all exported files by index (of blk)...
 	 * It is used to check if next file is a neighbour without having
@@ -575,6 +606,10 @@ void database_make_prg_db(void)
 					done =1;
 			} while(!done);
 
+#ifdef TAPCLEAN_EMBEDDED
+			prg[j].blkidend = pt[i];
+#endif
+
 			/* create the finished prg entry using data in tmp...  */
 
 			x = ti;					/* set final data length */
@@ -593,6 +628,9 @@ void database_make_prg_db(void)
 	prg[j].lt = 0;		/* terminator */
 
 	free(tmp);
+#ifdef TAPCLEAN_EMBEDDED
+	free(pt);
+#endif
 }
 
 /*
@@ -602,6 +640,11 @@ void database_make_prg_db(void)
 
 int database_save_prg_db(void)
 {
+#ifdef TAPCLEAN_EMBEDDED
+	/* Saving PRGs to a 'prg' folder next to the executable makes no
+	   sense on the device; the API consumer reads prg[] directly. */
+	return 0;
+#else
 	int i;
 	FILE *fp;
 
@@ -667,6 +710,7 @@ int database_save_prg_db(void)
 
 	chdir(exedir);
 	return 0;
+#endif /* !TAPCLEAN_EMBEDDED */
 }
 
 /* empty the prg datbase...  */

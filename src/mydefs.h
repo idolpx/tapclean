@@ -242,7 +242,9 @@ enum {
 	MSX_HEAD,
 	MSX_DATA,
 	MSX_HEAD_FAST,
-	MSX_DATA_FAST
+	MSX_DATA_FAST,
+	TTFAST_HEAD,
+	TTFAST_DATA
 };
 
 /*
@@ -317,6 +319,7 @@ enum {
 	LID_MMS,
 	LID_GREMLINGBH,
 	LID_GYROSPEED,
+	LID_TTFAST,
 };
 
 /*
@@ -367,7 +370,15 @@ struct tap_t
 	int tst_cs;
 	int tst_rd;
 };
+#ifdef TAPCLEAN_EMBEDDED
+/* The ~3.6 KB tap struct is heap-allocated (PSRAM) by tapclean_init()
+   instead of sitting in internal-DRAM BSS; the macro keeps every use
+   site (tap.field) unchanged. */
+extern struct tap_t *tapclean_tap;
+#define tap (*tapclean_tap)
+#else
 extern struct tap_t tap;
+#endif
 
 
 /* a reduced version of the above used as a database by batch scan... */
@@ -411,16 +422,29 @@ struct fmt_t
 	int pmax;		/* maximum pilots that should be present. */
 	int has_cs;		/* flag, provides checksums, 1=yes, 0=no. */
 };
+#ifdef TAPCLEAN_EMBEDDED
+extern struct fmt_t *ft;	/* PSRAM working copy, see tapclean_init() */
+#else
 extern struct fmt_t ft[];
+#endif
 
 extern unsigned char cbm_header[192];		/* some formats must have their loader... */
+#ifdef TAPCLEAN_EMBEDDED
+extern unsigned char *cbm_program;	/* heap-allocated by tapclean_init() */
+#else
 extern unsigned char cbm_program[65536];	/* interrogated. */
+#endif
 extern int cbm_decoded;				/* 1= yes, 0= no */
 
 extern int aborted;		/* general 'operation aborted' flag */
 extern int tol;			/* turbotape bit reading tolerance. */
+#ifdef TAPCLEAN_EMBEDDED
+extern char *lin;		/* heap-allocated by tapclean_init() */
+extern char *info;		/* heap-allocated by tapclean_init() */
+#else
 extern char lin[64000];		/* general purpose string building buffer */
 extern char info[1048576];	/* string building buffer, gathers output from scanners */
+#endif
 
 extern char c16;
 extern char c20;
@@ -440,6 +464,31 @@ extern char exedir[MAXPATH];	/* assigned in main.c, includes trailing slash. */
 
 
 /* program options... */
+
+#ifdef TAPCLEAN_EMBEDDED
+/* Rename short global names that collide with application symbols
+   (lib/utils 'tmp', lib/sam 'debug'). Consistent across all engine
+   sources since everything includes mydefs.h. */
+#define debug tapclean_option_debug
+#define tmp tapclean_buf_tmp
+
+/* Route every engine malloc() to PSRAM: the scan makes thousands of
+   small allocations (blk_t structs, decoded data blocks) that would
+   otherwise land in - and exhaust - internal DRAM. free() is unchanged
+   (unified heap). */
+#include <stddef.h>
+void *tapclean_psram_malloc(size_t n);
+#define malloc tapclean_psram_malloc
+
+/* Cooperative yield used by the pulse readers during long scans */
+void tapclean_scan_yield(void);
+
+/* Size-optimize the whole engine regardless of the app build type: the
+   app's flash text must stay inside the 3.3 MB instruction window, and
+   the PlatformIO ESP-IDF builder ignores per-component -O options. Every
+   engine source includes this header before defining functions. */
+#pragma GCC optimize("Os")
+#endif
 
 extern char debug;
 extern char noid;
@@ -546,7 +595,8 @@ enum {
 	nousgold,
 	novirgin,
 	novisi,
-	nowild
+	nowild,
+	noturbofast
 };
 
 enum {

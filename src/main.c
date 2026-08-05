@@ -37,7 +37,10 @@
 #include "crc32.h"
 #include "tap2audio.h"
 #include "skewadapt.h"
+#ifndef TAPCLEAN_EMBEDDED
+#include "tap2audio.h"
 #include "persistence.h"
+#endif
 
 /* program options... */
 
@@ -71,6 +74,11 @@ char ntsc			= FALSE;
  *
  * See enum for this table in mydefs.h: these must be kept in sync.
  */
+#ifdef TAPCLEAN_EMBEDDED
+/* never written in the embedded build (the -no/-do CLI options are
+   compiled out) - const keeps the ~4.4 KB table in flash, not DRAM */
+const
+#endif
 struct ldrswt_t ldrswt[] = {
 	/* description (max 31 chars),   parameter (max 15 chars),     exclude? */
 	{"C64 ROM loader"		,"c64"		,FALSE},
@@ -156,7 +164,8 @@ struct ldrswt_t ldrswt[] = {
 	{"U.S. Gold"			,"usgold"	,FALSE},
 	{"Virgin"			,"virgin"	,FALSE},
 	{"Visiload"			,"visi"		,FALSE},
-	{"Wildload"			,"wild"		,FALSE}
+	{"Wildload"			,"wild"		,FALSE},
+	{"Turbotape 64 Fast"		,"turbofast"	,FALSE}
 	/* description (max 31 chars),   parameter (max 15 chars),     exclude? */
 };
 
@@ -164,14 +173,31 @@ static int read_errors[NUM_READ_ERRORS];	/* storage for 1st NUM_READ_ERRORS read
 static char note_errors;	/* set true only when decoding identified files, */
 				/* it just tells 'add_read_error()' to ignore. */
 
+#ifdef TAPCLEAN_EMBEDDED
+struct tap_t *tapclean_tap;	/* allocated by tapclean_init(); 'tap' is a
+				   macro for (*tapclean_tap), see mydefs.h */
+int tapclean_tmem_borrowed = 0;	/* tap.tmem belongs to the caller
+				   (tapclean_load_buffer_ref) */
+#else
 struct tap_t tap;		/* container for the loaded tap (note: only ONE tap). */
+#endif
 
 int tol = DEFTOL;		/* bit reading tolerance. (1 = zero tolerance) */
 
+#ifdef TAPCLEAN_EMBEDDED
+/* Embedded build: these work buffers are far too large for static RAM on a
+   microcontroller. They are heap-allocated (PSRAM-first on ESP32) by
+   tapclean_init() in tapclean_api.c, and 'info' is reset per block in
+   describe_blocks() since the full-report use case does not exist here. */
+char *info;
+char *lin;
+char *tmp;
+#else
 char info[1048576];		/* buffer area for storing each blocks description text. */
 				/* also used to store the database report, hence the size! (1MB). */
 char lin[64000];		/* general purpose string building buffer. */
 char tmp[64000];		/* general purpose string building buffer. */
+#endif
 
 int aborted = FALSE;		/* general 'operation aborted by user' flag. */
 
@@ -179,7 +205,11 @@ int batchmode = FALSE;		/* set to 1 when "batch analysis" is performed. */
 				/* set to 0 when the user Opens an individual tap. */
 
 unsigned char cbm_header[192];	/* these will allow some interrogation of the CBM parts */
+#ifdef TAPCLEAN_EMBEDDED
+unsigned char *cbm_program;	/* heap-allocated by tapclean_init() */
+#else
 unsigned char cbm_program[65536];	/* that some customized loaders may rely on. (ie. burner). */
+#endif
 int cbm_decoded = FALSE;	/* this ensures only *1st* cbm parts are decoded. */
 
 int quiet = FALSE;		/* set 1 to stop the loader search routines from producing output, */
@@ -213,7 +243,14 @@ long cps = C64_PAL_CPS;		/* CPU Cycles pr second. Default is C64 PAL */
  * size for longer pilot sequences.
  */
 
+#ifdef TAPCLEAN_EMBEDDED
+/* The working table is a PSRAM copy made by tapclean_init() (scanners
+   write the VV fields at runtime, so it cannot be const, and ~4.3 KB of
+   internal-DRAM .data is too expensive); these defaults stay in flash. */
+static const struct fmt_t ft_defaults[] = {
+#else
 struct fmt_t ft[] = {
+#endif
 	/* name,                 en,   tp,   sp,   mp,   lp,   pv,   sv,   pmin, pmax,  has_cs. */
 
 	{""			,NA,   NA,   NA,   NA,   NA,   NA,   NA,   NA,   NA,    NA},
@@ -369,12 +406,24 @@ struct fmt_t ft[] = {
 	{"MSX TAPE DATA"	,LSbF, NA,   0x30, NA,   0x60, 1,    0,    1000, NA,    CSNO},
 	{"MSX TAPE HEADER FAST"	,LSbF, NA,   0x18, NA,   0x30, 1,    0,    6000, NA,    CSNO},
 	{"MSX TAPE DATA FAST"	,LSbF, NA,   0x18, NA,   0x30, 1,    0,    1000, NA,    CSNO},
+	{"TURBOTAPE-64-FAST HEADER",MSbF, 0x0E, 0x0B, NA, 0x12, 0x02, 0x09, 50,  NA,    CSNO},
+	{"TURBOTAPE-64-FAST DATA"  ,MSbF, 0x0E, 0x0B, NA, 0x12, 0x02, 0x09, 50,  NA,    CSYES},
 
 	/* Closing record (mandatory cap used e.g. in persistence module for iteration) */
 	{""			,666,  666,  666,  666,  666,  666,  666,  666,  666,   666}
 
 	/* name,                 en,   tp,   sp,   mp,   lp,   pv,   sv,   pmin, pmax,  has_cs. */
 };
+
+#ifdef TAPCLEAN_EMBEDDED
+struct fmt_t *ft;	/* PSRAM working copy, made by tapclean_init() */
+
+const void *tapclean_ft_defaults(size_t *size)
+{
+	*size = sizeof(ft_defaults);
+	return ft_defaults;
+}
+#endif
 
 /*
  * The following strings are used to describe which loader signature has been
@@ -453,6 +502,7 @@ const char knam[][48] = {
 	{"MMS Tape"},
 	{"Gremlin GBH"},
 	{"Gyrospeed"},
+	{"Turbotape 64 Fast"},
 	/*
 	 * Only loaders with a LID_ entry in mydefs.h enums. Do not list
 	 * them all here!
@@ -492,6 +542,14 @@ static void unload_tap(void)
 	strcpy(tap.name, "");
 	strcpy(tap.cbmname, "");
 
+#ifdef TAPCLEAN_EMBEDDED
+	/* A borrowed image buffer (tapclean_load_buffer_ref) belongs to the
+	   caller - just forget it */
+	if (tapclean_tmem_borrowed) {
+		tap.tmem = NULL;
+		tapclean_tmem_borrowed = 0;
+	}
+#endif
 	if(tap.tmem != NULL) {
 		free(tap.tmem);
 		tap.tmem = NULL;
@@ -536,6 +594,7 @@ static void unload_tap(void)
 	database_reset_prg_db();
 }
 
+#ifndef TAPCLEAN_EMBEDDED
 /*
  * Unallocate tap, crc_table and database
  */
@@ -884,6 +943,7 @@ static void handle_cps(void)
 
 	printf("(%ld Hz)\n", cps);
 }
+#endif /* !TAPCLEAN_EMBEDDED */
 
 /*
  * Search the tap for all known (and enabled) file formats.
@@ -945,6 +1005,9 @@ static void search_tap(void)
 		if (noid == FALSE) {	/* scanning shortcuts enabled?  */
 			if (tap.cbmid == LID_T250 	&& ldrswt[noturbo].exclude == FALSE && !database_is_full && !aborted)
 				turbotape_search();
+
+			if (tap.cbmid == LID_TTFAST	&& ldrswt[noturbofast].exclude == FALSE && !database_is_full && !aborted)
+				turbotape_fast_search();
 
 			if (tap.cbmid == LID_FREE 	&& ldrswt[nofree ].exclude== FALSE && !database_is_full && !aborted)
 				freeload_search();
@@ -1169,6 +1232,9 @@ static void search_tap(void)
 		if ((noid == FALSE && tap.cbmid == LID_NONE) || (noid == TRUE)) {
 			if (ldrswt[noturbo	].exclude == FALSE && !database_is_full && !aborted)
 				turbotape_search();
+
+			if (ldrswt[noturbofast	].exclude == FALSE && !database_is_full && !aborted)
+				turbotape_fast_search();
 
 			if (ldrswt[norislands	].exclude == FALSE && !database_is_full && !aborted)
 				rainbowislands_search();
@@ -1524,6 +1590,10 @@ static void describe_file(int row)
 					break;
 		case TT_DATA:		turbotape_describe(row);
 					break;
+		case TTFAST_HEAD:	turbotape_fast_describe(row);
+					break;
+		case TTFAST_DATA:	turbotape_fast_describe(row);
+					break;
 		case FREE:		freeload_describe(row);
 					break;
 		case ODELOAD:		odeload_describe(row);
@@ -1798,6 +1868,11 @@ static void describe_blocks(void)
 	for (i = 0; blk[i]->lt != LT_NONE; i++) {
 		t = blk[i]->lt;
 
+#ifdef TAPCLEAN_EMBEDDED
+		/* The full-tap text report is never built in the embedded
+		   build; reset 'info' per block so a small buffer suffices. */
+		info[0] = '\0';
+#endif
 		describe_file(i);
 
 		/* get generic info that all data blocks have... */
@@ -1815,6 +1890,7 @@ static void describe_blocks(void)
 	}
 }
 
+#ifndef TAPCLEAN_EMBEDDED
 /*
  * Save buffer tap.tmem[] to a named file.
  * Return 1 on success, 0 on error.
@@ -1833,6 +1909,7 @@ static int save_tap(char *name)
 
 	return 1;
 }
+#endif /* !TAPCLEAN_EMBEDDED */
 
 /*
  * Look at the TAP header and verify signature as C64 TAP.
@@ -2007,6 +2084,7 @@ static void get_file_stats(void)
  * Note: Call 'analyze()' before calling this!.
  */
 
+#ifndef TAPCLEAN_EMBEDDED
 static void print_results(char *buf)
 {
 	char szpass[2][5] = {"PASS", "FAIL"};
@@ -2471,6 +2549,7 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
+#endif /* !TAPCLEAN_EMBEDDED */
 
 /*
  * Read 1 pulse from the tap file offset at 'pos', decide whether it is a Bit0 or Bit1
@@ -2489,6 +2568,17 @@ int main(int argc, char *argv[])
 int readttbit(int pos, int lp, int sp, int tp)
 {
 	int valid, v, b;
+
+#ifdef TAPCLEAN_EMBEDDED
+	/* Scans are CPU-bound for seconds at a time; breathe periodically so
+	   the idle task (task watchdog) and lower-priority tasks can run */
+	{
+		static unsigned int yield_ctr;
+
+		if ((++yield_ctr & 0xFFFF) == 0)
+			tapclean_scan_yield();
+	}
+#endif
 
 	if (skewadapt_enabled && tp != NA)
 		return skewadapt_readttbit(pos, lp, sp, tp);
@@ -2610,6 +2700,16 @@ int readttbyte(int pos, int lp, int sp, int tp, int endi)
 
 int find_pilot(int pos, int fmt)
 {
+#ifdef TAPCLEAN_EMBEDDED
+	/* See readttbit(): scanners with custom bit readers still call
+	   find_pilot per tape offset, so yield here too */
+	{
+		static unsigned int yield_ctr;
+
+		if ((++yield_ctr & 0xFFFF) == 0)
+			tapclean_scan_yield();
+	}
+#endif
 	int z, sp, lp, tp, en, pv, sv, pmin, pmax;
 
 	if (pos < 20)
@@ -2925,6 +3025,7 @@ int analyze(void)
 	return 1;
 }
 
+#ifndef TAPCLEAN_EMBEDDED
 /*
  * Save a report for this TAP file.
  * Note: Call 'analyze()' before calling this!.
@@ -3079,6 +3180,7 @@ void clean(void)
 
 	quiet = 0;			/* allow talking again. */
 }
+#endif /* !TAPCLEAN_EMBEDDED */
 
 /*
  * Check whether the offset 'x' is accounted for in the database (by a data file
@@ -3411,6 +3513,7 @@ void time_to_string(time_t secs, char *buf)
 	sprintf(buf, "%02d:%02d:%02d", h, m, s);
 }
 
+#ifndef TAPCLEAN_EMBEDDED
 /*
  * Remove all/any existing work files.
  */
@@ -3452,4 +3555,101 @@ void delete_work_files(void)
 		unlink (tcinfoname);
 	}
 }
+#endif /* !TAPCLEAN_EMBEDDED */
+
+#ifdef TAPCLEAN_EMBEDDED
+/*
+ * Embedded-library glue (tapclean_api.c is the public surface). These live
+ * here because they need main.c statics (unload_tap, get_duration).
+ */
+
+/* Mirror of load_tap() for an in-memory image. owned != 0: the engine
+   takes ownership of 'buf' (frees it at unload). owned == 0: 'buf' is
+   borrowed - the caller keeps it valid until unload and frees it. */
+int tapclean_embedded_load(unsigned char *buf, unsigned int len, int owned)
+{
+	unsigned char *output_buffer;
+
+	unload_tap();
+
+	/* Check for DC2N format */
+	if (len >= strlen(DC2N_ID_STRING) &&
+	    strncmp(DC2N_ID_STRING, (char *)buf, strlen(DC2N_ID_STRING)) == 0) {
+		output_buffer = (unsigned char*)malloc(len);
+		if (output_buffer == NULL) {
+			msgout("\nError: malloc failed in tapclean_embedded_load().");
+			if (owned)
+				free(buf);
+			return 0;
+		}
+
+		tap.len = dc2nconv_to_tap(buf, output_buffer, (int)len);
+		tap.tmem = output_buffer;	/* the converted copy is owned */
+		if (owned)
+			free(buf);
+	} else {
+		tap.tmem = buf;
+		tap.len = len;
+		tapclean_tmem_borrowed = !owned;
+	}
+
+	tap.changed = TRUE;
+	cbm_decoded = FALSE;
+
+	strcpy(tap.path, "buffer.tap");
+	strcpy(tap.name, "buffer.tap");
+
+	if (skewadapt)
+		skewadapt_enabled = TRUE;
+
+	return 1;
+}
+
+void tapclean_embedded_unload(void)
+{
+	unload_tap();
+}
+
+/* Play time in seconds between two TAP offsets (see get_duration) */
+float tapclean_embedded_duration(int p1, int p2)
+{
+	return get_duration(p1, p2);
+}
+
+/* Inverse of get_duration(): TAP offset reached after 'ms' of play time
+   from the start of the data area (offset 20). Used for the Meatloaf tape
+   counter. Walks pulses exactly like get_duration(). */
+int tapclean_embedded_offset_at_ms(unsigned int ms)
+{
+	int i;
+	unsigned int zsum;
+	double tot = 0;
+	double target = (double)ms / 1000.0;
+	double p = (double)20000 / cps;
+
+	if (tap.tmem == NULL)
+		return 0;
+
+	for (i = 20; i < tap.len; i++) {
+		if (tot >= target)
+			return i;
+
+		if (tap.tmem[i] != 0)
+			tot += ((double)(tap.tmem[i] * 8) / cps);
+
+		if (tap.tmem[i] == 0 && tap.version == 0)
+			tot += p;
+
+		if (tap.tmem[i] == 0 && tap.version == 1) {
+			zsum = (unsigned int) tap.tmem[i + 1] +
+				((unsigned int) tap.tmem[i + 2] << 8) +
+				((unsigned int) tap.tmem[i + 3] << 16);
+			tot += (double) zsum / cps;
+			i += 3;
+		}
+	}
+
+	return tap.len;
+}
+#endif /* TAPCLEAN_EMBEDDED */
 

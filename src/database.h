@@ -66,6 +66,10 @@ struct blk_t
 struct prg_t
 {
 	int blkidstart;		/*!< database block where PRG contents start */
+#ifdef TAPCLEAN_EMBEDDED
+	int blkidend;		/*!< database block where PRG contents end
+				     (== blkidstart unless blocks were united) */
+#endif
 
 	int lt;			/*!< loader type (required for block
 				     unification) */
@@ -81,10 +85,16 @@ struct prg_t
 				     be long) */
 };
 
+#ifdef TAPCLEAN_EMBEDDED
+/* Both databases are heap-allocated (PSRAM) by tapclean_init() */
+extern struct blk_t **blk;
+extern struct prg_t *prg;
+#else
 /* Database of all found entities. */
 extern struct blk_t *blk[BLKMAX];
 /* Database of all extracted files (prg's). */
 extern struct prg_t prg[BLKMAX];
+#endif
 /* Flag used by database_add_blk_def() to indicate database capacity reached */
 extern int database_is_full;
 
