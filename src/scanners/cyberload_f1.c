@@ -104,7 +104,7 @@ void cyberload_f1_search(void)
       {sp=0x30;lp=0x5A;}
       if(tp>0x44 && tp<0x52)   /* pulse set B... */
       {sp=0x3B;lp=0x72;}
-      if(tp==0x2B)             /* pulse set C (sanxion)... */
+      if(tp>=0x2B && tp<=0x2C) /* pulse set C (sanxion)... */
       {sp=0x24;lp=0x40;}
       if(tp==0x79)             /* pulse set D {image system & gangster)... */
       {sp=0x55;lp=0xA5;}
