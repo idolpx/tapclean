@@ -612,9 +612,12 @@ int cbm_describe(int row)
 			strcat(info, lin);
 		}
 
-		blk[row]->cs = _dfs;
-		blk[row]->ce = _dfe - 1;
-		blk[row]->cx = ((blk[row]->p3 - blk[row]->p2) / PULSESINABYTE);
+		/* Scanners such as Palace's override this info, so we only override it here if the former override hasn't happened */
+		if (blk[row]->cs == 0) {
+			blk[row]->cs = _dfs;
+			blk[row]->ce = _dfe - 1;
+			blk[row]->cx = ((blk[row]->p3 - blk[row]->p2) / PULSESINABYTE);
+		}
 
 		/* report inconsistancy between size in header and actual size... */
 
